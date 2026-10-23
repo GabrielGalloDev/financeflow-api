@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: financeflow
+
+  # Lê o .env da raiz do projeto como se fosse um .properties (opcional: no CI ele não existe)
+  config:
+    import: optional:file:.env[.properties]
+
+  # Perfil usado quando nenhum for informado
+  profiles:
+    default: dev
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  error:
+    include-stacktrace: never
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration-minutes: 360
