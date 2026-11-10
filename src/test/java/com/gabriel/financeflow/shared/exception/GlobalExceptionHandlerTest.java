@@ -79,6 +79,15 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void invalidRefreshTokenReturns401WithItsMessage() throws Exception {
+        mockMvc.perform(get("/fake/invalid-refresh-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail").value("Refresh token inválido ou expirado"));
+    }
+
+    @Test
     void accessDeniedReturns403InsteadOf500() throws Exception {
         mockMvc.perform(get("/fake/forbidden"))
                 .andExpect(status().isForbidden())
@@ -133,6 +142,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/fake/invalid-credentials")
         void invalidCredentials() {
             throw new InvalidCredentialsException("E-mail ou senha inválidos");
+        }
+
+        @GetMapping("/fake/invalid-refresh-token")
+        void invalidRefreshToken() {
+            throw new InvalidRefreshTokenException("Refresh token inválido ou expirado");
         }
 
         @GetMapping("/fake/forbidden")

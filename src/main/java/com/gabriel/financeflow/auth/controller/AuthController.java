@@ -1,6 +1,7 @@
 package com.gabriel.financeflow.auth.controller;
 
 import com.gabriel.financeflow.auth.dto.LoginRequest;
+import com.gabriel.financeflow.auth.dto.RefreshRequest;
 import com.gabriel.financeflow.auth.dto.RegisterRequest;
 import com.gabriel.financeflow.auth.dto.TokenResponse;
 import com.gabriel.financeflow.auth.service.AuthService;
@@ -31,5 +32,16 @@ public class AuthController {
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        return authService.refresh(request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request);
     }
 }

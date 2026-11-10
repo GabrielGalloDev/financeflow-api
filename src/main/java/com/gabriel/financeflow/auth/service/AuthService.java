@@ -1,6 +1,7 @@
 package com.gabriel.financeflow.auth.service;
 
 import com.gabriel.financeflow.auth.dto.LoginRequest;
+import com.gabriel.financeflow.auth.dto.RefreshRequest;
 import com.gabriel.financeflow.auth.dto.RegisterRequest;
 import com.gabriel.financeflow.auth.dto.TokenResponse;
 import com.gabriel.financeflow.shared.exception.ConflictException;
@@ -21,11 +22,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final RefreshTokenService refreshTokenService;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, TokenService tokenService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       TokenService tokenService, RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
@@ -43,7 +47,7 @@ public class AuthService {
         return UserResponse.from(saved);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
@@ -54,8 +58,24 @@ public class AuthService {
             throw new InvalidCredentialsException(INVALID_CREDENTIALS);
         }
 
+        return issueTokens(user);
+    }
+
+    @Transactional
+    public TokenResponse refresh(RefreshRequest request) {
+        User user = refreshTokenService.consume(request.refreshToken());
+        return issueTokens(user);
+    }
+
+    @Transactional
+    public void logout(RefreshRequest request) {
+        refreshTokenService.revoke(request.refreshToken());
+    }
+
+    private TokenResponse issueTokens(User user) {
         String accessToken = tokenService.generateAccessToken(user);
-        return TokenResponse.bearer(accessToken, null, tokenService.accessTokenExpiresInSeconds());
+        String refreshToken = refreshTokenService.issue(user);
+        return TokenResponse.bearer(accessToken, refreshToken, tokenService.accessTokenExpiresInSeconds());
     }
 
     private String normalizeEmail(String email) {

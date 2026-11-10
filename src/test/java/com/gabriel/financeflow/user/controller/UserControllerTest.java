@@ -1,5 +1,6 @@
 package com.gabriel.financeflow.user.controller;
 
+import com.gabriel.financeflow.auth.repository.RefreshTokenRepository;
 import com.gabriel.financeflow.user.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class UserControllerTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Test
     void fullFlowRegisterLoginAndGetMe() throws Exception {
@@ -73,7 +77,10 @@ class UserControllerTest {
     void validTokenOfDeletedUserReturns404() throws Exception {
         String token = registerAndLogin("Gabriel", "gabriel@email.com", "senha1234");
 
-        // O token continua válido até expirar, mas a conta não existe mais
+        // O token continua válido até expirar, mas a conta não existe mais.
+        // Os refresh tokens saem primeiro: o Hibernate não deixa apagar um User que ainda está
+        // referenciado por entidades carregadas na memória (o CASCADE do banco não alcança essa memória).
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
         userRepository.flush();
 
