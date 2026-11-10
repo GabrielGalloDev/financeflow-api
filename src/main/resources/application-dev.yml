@@ -9,3 +9,8 @@ logging:
     com.gabriel.financeflow: debug
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
+
+app:
+  security:
+    jwt:
+      access-token-minutes: 360
