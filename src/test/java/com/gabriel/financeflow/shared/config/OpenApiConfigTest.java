@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -20,8 +19,8 @@ class OpenApiConfigTest {
     @Autowired
     private MockMvc mockMvc;
 
+    // Sem @WithMockUser: o teste também prova que a documentação é pública
     @Test
-    @WithMockUser
     void apiDocsExposeInfoAndBearerSecurityScheme() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())

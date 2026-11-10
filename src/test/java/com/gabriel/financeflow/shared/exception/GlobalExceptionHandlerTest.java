@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -60,6 +61,15 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void accessDeniedReturns403InsteadOf500() throws Exception {
+        mockMvc.perform(get("/fake/forbidden"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.detail").value("Acesso negado"));
+    }
+
+    @Test
     void invalidBodyReturns400WithFieldErrors() throws Exception {
         mockMvc.perform(post("/fake/validation")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -95,6 +105,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/fake/unexpected")
         void unexpected() {
             throw new IllegalStateException("SELECT * FROM users -- detalhe interno");
+        }
+
+        @GetMapping("/fake/forbidden")
+        void forbidden() {
+            throw new AccessDeniedException("sem permissão");
         }
 
         @PostMapping("/fake/validation")
