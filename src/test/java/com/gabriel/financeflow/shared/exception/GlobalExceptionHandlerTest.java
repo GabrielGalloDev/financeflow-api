@@ -61,6 +61,15 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void conflictExceptionReturns409WithItsMessage() throws Exception {
+        mockMvc.perform(get("/fake/conflict"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value("E-mail já cadastrado"));
+    }
+
+    @Test
     void accessDeniedReturns403InsteadOf500() throws Exception {
         mockMvc.perform(get("/fake/forbidden"))
                 .andExpect(status().isForbidden())
@@ -105,6 +114,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/fake/unexpected")
         void unexpected() {
             throw new IllegalStateException("SELECT * FROM users -- detalhe interno");
+        }
+
+        @GetMapping("/fake/conflict")
+        void conflict() {
+            throw new ConflictException("E-mail já cadastrado");
         }
 
         @GetMapping("/fake/forbidden")
