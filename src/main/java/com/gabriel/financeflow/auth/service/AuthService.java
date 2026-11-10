@@ -23,13 +23,16 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokenService;
+    private final LoginAttemptService loginAttemptService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       TokenService tokenService, RefreshTokenService refreshTokenService) {
+                       TokenService tokenService, RefreshTokenService refreshTokenService,
+                       LoginAttemptService loginAttemptService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Transactional
@@ -51,13 +54,16 @@ public class AuthService {
     public TokenResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new InvalidCredentialsException(INVALID_CREDENTIALS));
+        loginAttemptService.checkNotBlocked(email);
 
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        if (user == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            loginAttemptService.registerFailure(email);
             throw new InvalidCredentialsException(INVALID_CREDENTIALS);
         }
 
+        loginAttemptService.registerSuccess(email);
         return issueTokens(user);
     }
 

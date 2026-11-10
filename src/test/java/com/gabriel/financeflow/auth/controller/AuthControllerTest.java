@@ -2,15 +2,18 @@ package com.gabriel.financeflow.auth.controller;
 
 import com.gabriel.financeflow.auth.entity.RefreshToken;
 import com.gabriel.financeflow.auth.repository.RefreshTokenRepository;
+import com.gabriel.financeflow.auth.service.LoginAttemptService;
 import com.gabriel.financeflow.user.entity.User;
 import com.gabriel.financeflow.user.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -26,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -58,6 +62,18 @@ class AuthControllerTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private LoginAttemptService loginAttemptService;
+
+    /**
+     * O LoginAttemptService é um só para todos os testes e guarda o estado em memória:
+     * o @Transactional não o desfaz. Sem limpar, as falhas de um teste vazariam para o outro.
+     */
+    @BeforeEach
+    void resetLoginAttempts() {
+        loginAttemptService.clear();
+    }
 
     // ---------- cadastro válido ----------
 
@@ -337,7 +353,58 @@ class AuthControllerTest {
         assertThat(remaining).isZero();
     }
 
+    // ---------- limite de tentativas ----------
+
+    @Test
+    void sixthAttemptIsBlockedEvenWithCorrectPassword() throws Exception {
+        register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());
+
+        failLogin("gabriel@email.com", 5);
+
+        login("gabriel@email.com", "senha1234")
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, "900"))
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.detail").value("Muitas tentativas de login. Tente novamente mais tarde."));
+    }
+
+    @Test
+    void unknownEmailIsBlockedToo() throws Exception {
+        failLogin("naoexiste@email.com", 5);
+
+        // Se aqui desse 401, o atacante saberia que o e-mail não existe
+        login("naoexiste@email.com", "qualquer1")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void uppercaseEmailDoesNotEscapeTheBlock() throws Exception {
+        register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());
+
+        failLogin("gabriel@email.com", 5);
+
+        login("GABRIEL@Email.com", "senha1234")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void successfulLoginResetsTheCounter() throws Exception {
+        register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());
+
+        failLogin("gabriel@email.com", 4);
+        login("gabriel@email.com", "senha1234").andExpect(status().isOk());
+
+        failLogin("gabriel@email.com", 4);
+        login("gabriel@email.com", "senha1234").andExpect(status().isOk());
+    }
+
     // ---------- helpers ----------
+
+    private void failLogin(String email, int times) throws Exception {
+        for (int i = 0; i < times; i++) {
+            login(email, "senhaErrada").andExpect(status().isUnauthorized());
+        }
+    }
 
     private String registerAndLoginRefreshToken() throws Exception {
         register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());

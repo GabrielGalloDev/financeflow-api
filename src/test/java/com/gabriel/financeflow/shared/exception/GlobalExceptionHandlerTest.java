@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,6 +23,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -88,6 +90,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void tooManyRequestsReturns429WithRetryAfterHeader() throws Exception {
+        mockMvc.perform(get("/fake/too-many-requests"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, "900"))
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(jsonPath("$.detail").value("Muitas tentativas de login. Tente novamente mais tarde."));
+    }
+
+    @Test
     void accessDeniedReturns403InsteadOf500() throws Exception {
         mockMvc.perform(get("/fake/forbidden"))
                 .andExpect(status().isForbidden())
@@ -147,6 +159,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/fake/invalid-refresh-token")
         void invalidRefreshToken() {
             throw new InvalidRefreshTokenException("Refresh token inválido ou expirado");
+        }
+
+        @GetMapping("/fake/too-many-requests")
+        void tooManyRequests() {
+            throw new TooManyRequestsException("Muitas tentativas de login. Tente novamente mais tarde.", 900);
         }
 
         @GetMapping("/fake/forbidden")
