@@ -1,6 +1,8 @@
 package com.gabriel.financeflow.auth.controller;
 
+import com.gabriel.financeflow.auth.dto.LoginRequest;
 import com.gabriel.financeflow.auth.dto.RegisterRequest;
+import com.gabriel.financeflow.auth.dto.TokenResponse;
 import com.gabriel.financeflow.auth.service.AuthService;
 import com.gabriel.financeflow.user.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -24,5 +26,10 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse register(@Valid @RequestBody RegisterRequest request) {
         return authService.register(request);
+    }
+
+    @PostMapping("/login")
+    public TokenResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 }

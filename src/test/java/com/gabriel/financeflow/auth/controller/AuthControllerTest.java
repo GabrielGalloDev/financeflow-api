@@ -2,12 +2,15 @@ package com.gabriel.financeflow.auth.controller;
 
 import com.gabriel.financeflow.user.entity.User;
 import com.gabriel.financeflow.user.repository.UserRepository;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -27,6 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerTest {
 
     private static final String REGISTER_URL = "/api/v1/auth/register";
+    private static final String LOGIN_URL = "/api/v1/auth/login";
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,6 +40,9 @@ class AuthControllerTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtDecoder jwtDecoder;
 
     // ---------- cadastro válido ----------
 
@@ -142,7 +149,82 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.errors", hasSize(3)));
     }
 
-    // ---------- helper ----------
+    // ---------- login ----------
+
+    @Test
+    void loginReturns200WithBearerToken() throws Exception {
+        register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());
+
+        login("gabriel@email.com", "senha1234")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.expiresIn").value(900))
+                .andExpect(jsonPath("$.refreshToken").doesNotExist());
+    }
+
+    @Test
+    void loginAcceptsEmailWithDifferentCase() throws Exception {
+        register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());
+
+        login("  GABRIEL@Email.com ", "senha1234")
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void tokenSubjectIsTheUserIdAndExpiresIn15Minutes() throws Exception {
+        String registerBody = register("Gabriel", "gabriel@email.com", "senha1234")
+                .andReturn().getResponse().getContentAsString();
+        String userId = JsonPath.read(registerBody, "$.id");
+
+        String loginBody = login("gabriel@email.com", "senha1234")
+                .andReturn().getResponse().getContentAsString();
+        String accessToken = JsonPath.read(loginBody, "$.accessToken");
+
+        Jwt jwt = jwtDecoder.decode(accessToken);
+
+        assertThat(jwt.getSubject()).isEqualTo(userId);
+        // getIssuer() tenta converter o "iss" em URL: como o nosso é um nome simples, lemos como texto
+        assertThat(jwt.getClaimAsString("iss")).isEqualTo("financeflow");
+        assertThat(jwt.getHeaders()).containsEntry("alg", "HS256");
+        assertThat(jwt.getExpiresAt()).isEqualTo(jwt.getIssuedAt().plusSeconds(900));
+    }
+
+    @Test
+    void wrongPasswordReturns401() throws Exception {
+        register("Gabriel", "gabriel@email.com", "senha1234").andExpect(status().isCreated());
+
+        login("gabriel@email.com", "senhaErrada")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos"));
+    }
+
+    @Test
+    void unknownEmailReturns401WithSameMessage() throws Exception {
+        login("naoexiste@email.com", "senha1234")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("E-mail ou senha inválidos"));
+    }
+
+    @Test
+    void loginWithBlankFieldsReturns400() throws Exception {
+        login("", "")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("email", "password")));
+    }
+
+    // ---------- helpers ----------
+
+    private ResultActions login(String email, String password) throws Exception {
+        String json = """
+                {"email": "%s", "password": "%s"}
+                """.formatted(email, password);
+
+        return mockMvc.perform(post(LOGIN_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json));
+    }
 
     private ResultActions register(String name, String email, String password) throws Exception {
         String json = """
