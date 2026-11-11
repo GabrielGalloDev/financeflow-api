@@ -38,3 +38,9 @@ app:
       secret: ${JWT_SECRET}
       access-token-minutes: 15
       refresh-token-days: 7
+
+springdoc:
+  swagger-ui:
+    persist-authorization: true   # mantém o token do Authorize ao recarregar a página
+    tags-sorter: alpha            # grupos em ordem alfabética
+    operations-sorter: method     # dentro do grupo, ordena por método HTTP

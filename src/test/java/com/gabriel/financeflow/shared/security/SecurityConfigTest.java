@@ -77,11 +77,24 @@ class SecurityConfigTest {
 
     @Test
     void authEndpointsArePublic() throws Exception {
-        // Ainda não implementados: o importante é não ser 401
+        // Corpo vazio dá 400 (validação): o importante é que a segurança deixou passar, e não deu 401
         mockMvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().is(not(401)));
         mockMvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().is(not(401)));
+    }
+
+    @Test
+    void invalidBearerTokenOnPublicRouteStillReturns401() throws Exception {
+        // Comportamento do Spring Security: se vier um Bearer, ele é validado mesmo em rota permitAll.
+        // É por isso que as rotas de auth não podem ter cadeado no Swagger (ele mandaria o token junto).
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer token-inventado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email": "gabriel@email.com", "password": "senha1234"}
+                                """))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
