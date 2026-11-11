@@ -18,4 +18,8 @@ public record RegisterRequest(
         @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres")
         String password
 ) {
+    @Override
+    public String toString() {
+        return "RegisterRequest[name=" + name + ", email=" + email + ", password=***]";
+    }
 }

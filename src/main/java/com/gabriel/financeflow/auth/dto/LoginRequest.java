@@ -9,4 +9,8 @@ public record LoginRequest(
         @NotBlank(message = "A senha é obrigatória")
         String password
 ) {
+    @Override
+    public String toString() {
+        return "LoginRequest[email=" + email + ", password=***]";
+    }
 }

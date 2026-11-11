@@ -8,7 +8,6 @@ logging:
   level:
     com.gabriel.financeflow: debug
     org.hibernate.SQL: debug
-    org.hibernate.orm.jdbc.bind: trace
 
 app:
   security:

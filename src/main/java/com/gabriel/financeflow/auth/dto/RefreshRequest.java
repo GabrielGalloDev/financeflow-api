@@ -6,4 +6,8 @@ public record RefreshRequest(
         @NotBlank(message = "O refresh token é obrigatório")
         String refreshToken
 ) {
+    @Override
+    public String toString() {
+        return "RefreshRequest[refreshToken=***]";
+    }
 }
