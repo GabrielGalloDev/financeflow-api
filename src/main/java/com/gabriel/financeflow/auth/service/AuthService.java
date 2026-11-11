@@ -6,14 +6,13 @@ import com.gabriel.financeflow.auth.dto.RegisterRequest;
 import com.gabriel.financeflow.auth.dto.TokenResponse;
 import com.gabriel.financeflow.shared.exception.ConflictException;
 import com.gabriel.financeflow.shared.exception.InvalidCredentialsException;
+import com.gabriel.financeflow.shared.text.EmailNormalizer;
 import com.gabriel.financeflow.user.dto.UserResponse;
 import com.gabriel.financeflow.user.entity.User;
 import com.gabriel.financeflow.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Locale;
 
 @Service
 public class AuthService {
@@ -37,7 +36,7 @@ public class AuthService {
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
-        String email = normalizeEmail(request.email());
+        String email = EmailNormalizer.normalize(request.email());
 
         if (userRepository.existsByEmail(email)) {
             throw new ConflictException("E-mail já cadastrado");
@@ -52,7 +51,7 @@ public class AuthService {
 
     @Transactional
     public TokenResponse login(LoginRequest request) {
-        String email = normalizeEmail(request.email());
+        String email = EmailNormalizer.normalize(request.email());
 
         loginAttemptService.checkNotBlocked(email);
 
@@ -82,9 +81,5 @@ public class AuthService {
         String accessToken = tokenService.generateAccessToken(user);
         String refreshToken = refreshTokenService.issue(user);
         return TokenResponse.bearer(accessToken, refreshToken, tokenService.accessTokenExpiresInSeconds());
-    }
-
-    private String normalizeEmail(String email) {
-        return email.trim().toLowerCase(Locale.ROOT);
     }
 }
