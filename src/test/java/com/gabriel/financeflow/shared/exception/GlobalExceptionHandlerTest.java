@@ -109,6 +109,18 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void malformedJsonReturns400WithoutInternalDetails() throws Exception {
+        mockMvc.perform(post("/fake/validation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": "))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail")
+                        .value("Corpo da requisição inválido: confira o formato do JSON e os valores dos campos"));
+    }
+
+    @Test
     void invalidBodyReturns400WithFieldErrors() throws Exception {
         mockMvc.perform(post("/fake/validation")
                         .contentType(MediaType.APPLICATION_JSON)

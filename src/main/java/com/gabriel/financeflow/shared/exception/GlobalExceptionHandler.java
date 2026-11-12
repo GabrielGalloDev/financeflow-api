@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -33,6 +34,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail body = ex.getBody();
         body.setDetail("Um ou mais campos são inválidos");
         body.setProperty("errors", errors);
+
+        return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    /**
+     * JSON malformado ou valor que não cabe no tipo (ex.: "type": "POUPANCA" num enum).
+     * O erro acontece antes da validação, ao montar o DTO. A mensagem original não vai para
+     * a resposta: ela tem detalhes internos (nomes de classes Java, posição no JSON).
+     */
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(
+            HttpMessageNotReadableException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "Corpo da requisição inválido: confira o formato do JSON e os valores dos campos");
 
         return handleExceptionInternal(ex, body, headers, status, request);
     }
