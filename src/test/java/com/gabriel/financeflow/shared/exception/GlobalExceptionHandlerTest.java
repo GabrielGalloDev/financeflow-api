@@ -137,7 +137,9 @@ class GlobalExceptionHandlerTest {
     void invalidUuidInPathReturns400() throws Exception {
         mockMvc.perform(get("/fake/items/not-a-uuid"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
+                .andExpect(jsonPath("$.status").value(400))
+                // O nome do parâmetro aparece; o nome da classe Java (java.util.UUID) não
+                .andExpect(jsonPath("$.detail").value("Parâmetro 'id' com valor inválido"));
     }
 
     @RestController

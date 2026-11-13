@@ -1,6 +1,7 @@
 package com.gabriel.financeflow.shared.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -38,11 +39,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, body, headers, status, request);
     }
 
-    /**
-     * JSON malformado ou valor que não cabe no tipo (ex.: "type": "POUPANCA" num enum).
-     * O erro acontece antes da validação, ao montar o DTO. A mensagem original não vai para
-     * a resposta: ela tem detalhes internos (nomes de classes Java, posição no JSON).
-     */
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
             HttpMessageNotReadableException ex,
@@ -52,6 +48,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 "Corpo da requisição inválido: confira o formato do JSON e os valores dos campos");
+
+        return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(
+            TypeMismatchException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+
+        ProblemDetail body = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "Parâmetro '" + ex.getPropertyName() + "' com valor inválido");
 
         return handleExceptionInternal(ex, body, headers, status, request);
     }
