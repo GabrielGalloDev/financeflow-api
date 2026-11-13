@@ -57,7 +57,7 @@ public class TransactionController {
     @GetMapping
     public PageResponse<TransactionResponse> search(
             @Valid @ParameterObject TransactionFilter filter,
-            @ParameterObject @PageableDefault(sort = "date", direction = Sort.Direction.DESC) Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = "date", direction = Sort.Direction.DESC) Pageable pageable) {
         return transactionService.search(filter, pageable);
     }
 
