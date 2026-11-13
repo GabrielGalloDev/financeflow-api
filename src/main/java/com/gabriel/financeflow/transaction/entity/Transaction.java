@@ -118,8 +118,16 @@ public class Transaction extends BaseEntity {
         this.notes = notes;
     }
 
-    public void markAsPaid() {
+    public void markAsPaid(LocalDate today) {
+        if (status == TransactionStatus.PAID) {
+            return;
+        }
+
         this.status = TransactionStatus.PAID;
+
+        if (date.isAfter(today)) {
+            this.date = today;
+        }
     }
 
     public void softDelete(Instant now) {

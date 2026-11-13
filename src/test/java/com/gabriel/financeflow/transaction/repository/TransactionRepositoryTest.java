@@ -126,7 +126,7 @@ class TransactionRepositoryTest {
         transactionRepository.flush();
         assertThat(transactionRepository.movementsOf(nubank.getId())).isEqualByComparingTo("-150.00");
 
-        freela.markAsPaid();
+        freela.markAsPaid(DAY);
         transactionRepository.flush();
         assertThat(transactionRepository.movementsOf(nubank.getId())).isEqualByComparingTo("150.00");
     }

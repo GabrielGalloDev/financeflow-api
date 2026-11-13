@@ -29,7 +29,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request) {
 
         List<FieldErrorResponse> errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> new FieldErrorResponse(error.getField(), error.getDefaultMessage()))
+                .map(error -> new FieldErrorResponse(
+                        error.getField(),
+                        error.isBindingFailure() ? "Valor inválido" : error.getDefaultMessage()))
                 .toList();
 
         ProblemDetail body = ex.getBody();
@@ -63,6 +65,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "Parâmetro '" + ex.getPropertyName() + "' com valor inválido");
 
         return handleExceptionInternal(ex, body, headers, status, request);
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ProblemDetail handleInvalidRequest(InvalidRequestException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(ResourceNotFoundException.class)

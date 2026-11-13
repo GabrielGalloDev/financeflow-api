@@ -9,6 +9,7 @@ import com.gabriel.financeflow.shared.exception.ConflictException;
 import com.gabriel.financeflow.shared.exception.ResourceNotFoundException;
 import com.gabriel.financeflow.shared.money.MoneyUtils;
 import com.gabriel.financeflow.shared.security.CurrentUser;
+import com.gabriel.financeflow.transaction.repository.TransactionRepository;
 import com.gabriel.financeflow.user.entity.User;
 import com.gabriel.financeflow.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -28,13 +30,15 @@ public class AccountService {
     private final UserRepository userRepository;
     private final CurrentUser currentUser;
     private final Clock clock;
+    private final TransactionRepository transactionRepository;
 
     public AccountService(AccountRepository accountRepository, UserRepository userRepository,
-                          CurrentUser currentUser, Clock clock) {
+                          CurrentUser currentUser, Clock clock, TransactionRepository transactionRepository) {
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
         this.currentUser = currentUser;
         this.clock = clock;
+        this.transactionRepository = transactionRepository;
     }
 
     @Transactional
@@ -67,7 +71,11 @@ public class AccountService {
                 ? accountRepository.findAllByUserIdOrderByNameAsc(userId)
                 : accountRepository.findAllByUserIdAndArchivedAtIsNullOrderByNameAsc(userId);
 
-        return accounts.stream().map(this::toResponse).toList();
+        Map<UUID, BigDecimal> movements = transactionRepository.movementsByAccountOf(userId);
+
+        return accounts.stream()
+                .map(account -> toResponse(account, movements.getOrDefault(account.getId(), BigDecimal.ZERO)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -125,12 +133,12 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Conta não encontrada"));
     }
 
-    private BigDecimal currentBalanceOf(Account account) {
-        return account.getInitialBalance();
+    private AccountResponse toResponse(Account account) {
+        return toResponse(account, transactionRepository.movementsOf(account.getId()));
     }
 
-    private AccountResponse toResponse(Account account) {
-        return AccountResponse.from(account, currentBalanceOf(account));
+    private AccountResponse toResponse(Account account, BigDecimal movements) {
+        return AccountResponse.from(account, MoneyUtils.normalize(account.getInitialBalance().add(movements)));
     }
 
     private String normalizeName(String name) {

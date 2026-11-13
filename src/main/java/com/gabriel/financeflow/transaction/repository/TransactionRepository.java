@@ -3,31 +3,29 @@ package com.gabriel.financeflow.transaction.repository;
 import com.gabriel.financeflow.transaction.entity.Transaction;
 import com.gabriel.financeflow.transaction.entity.TransactionStatus;
 import com.gabriel.financeflow.transaction.entity.TransactionType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-/** O JpaSpecificationExecutor traz o findAll(Specification, Pageable) que os filtros da 5.6 vão usar. */
 public interface TransactionRepository
         extends JpaRepository<Transaction, UUID>, JpaSpecificationExecutor<Transaction> {
 
-    /** O guarda: só as do usuário, e nunca as excluídas (excluída = 404). */
     Optional<Transaction> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
 
-    /** As duas pernas de uma transferência. */
     List<Transaction> findAllByTransferGroupIdAndDeletedAtIsNull(UUID transferGroupId);
 
-    /**
-     * Soma das movimentações de uma conta: + entradas, - saídas. Só as pagas e não excluídas.
-     * COALESCE: sem nenhuma movimentação, o SUM devolve NULL; aqui vira 0.
-     */
     @Query("""
             SELECT COALESCE(SUM(CASE WHEN t.type IN :incoming THEN t.amount ELSE -t.amount END), 0)
             FROM Transaction t
@@ -39,8 +37,30 @@ public interface TransactionRepository
                             @Param("incoming") Collection<TransactionType> incoming,
                             @Param("paid") TransactionStatus paid);
 
-    /** Atalho para o service: o quanto as movimentações pagas mudaram o saldo da conta. */
     default BigDecimal movementsOf(UUID accountId) {
         return sumMovements(accountId, TransactionType.incoming(), TransactionStatus.PAID);
     }
+
+    @Query("""
+            SELECT new com.gabriel.financeflow.transaction.repository.AccountMovements(
+                t.account.id,
+                SUM(CASE WHEN t.type IN :incoming THEN t.amount ELSE -t.amount END))
+            FROM Transaction t
+            WHERE t.user.id = :userId
+              AND t.status = :paid
+              AND t.deletedAt IS NULL
+            GROUP BY t.account.id
+            """)
+    List<AccountMovements> sumMovementsByAccount(@Param("userId") UUID userId,
+                                                 @Param("incoming") Collection<TransactionType> incoming,
+                                                 @Param("paid") TransactionStatus paid);
+
+    default Map<UUID, BigDecimal> movementsByAccountOf(UUID userId) {
+        return sumMovementsByAccount(userId, TransactionType.incoming(), TransactionStatus.PAID).stream()
+                .collect(Collectors.toMap(AccountMovements::accountId, AccountMovements::total));
+    }
+
+    @Override
+    @EntityGraph(attributePaths = {"account", "category"})
+    Page<Transaction> findAll(Specification<Transaction> spec, Pageable pageable);
 }

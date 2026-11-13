@@ -100,6 +100,15 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void invalidRequestReturns400WithItsMessage() throws Exception {
+        mockMvc.perform(get("/fake/invalid-request"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.detail").value("Não é possível ordenar por 'xyz'. Use: date, amount ou createdAt"));
+    }
+
+    @Test
     void accessDeniedReturns403InsteadOf500() throws Exception {
         mockMvc.perform(get("/fake/forbidden"))
                 .andExpect(status().isForbidden())
@@ -178,6 +187,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/fake/too-many-requests")
         void tooManyRequests() {
             throw new TooManyRequestsException("Muitas tentativas de login. Tente novamente mais tarde.", 900);
+        }
+
+        @GetMapping("/fake/invalid-request")
+        void invalidRequest() {
+            throw new InvalidRequestException("Não é possível ordenar por 'xyz'. Use: date, amount ou createdAt");
         }
 
         @GetMapping("/fake/forbidden")

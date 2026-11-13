@@ -6,13 +6,18 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-/** Um relógio que o teste pode avançar à vontade. */
 public class MutableClock extends Clock {
 
     private Instant instant;
+    private final ZoneId zone;
 
     public MutableClock(Instant start) {
+        this(start, ZoneOffset.UTC);
+    }
+
+    private MutableClock(Instant start, ZoneId zone) {
         this.instant = start;
+        this.zone = zone;
     }
 
     public void advance(Duration duration) {
@@ -26,11 +31,11 @@ public class MutableClock extends Clock {
 
     @Override
     public ZoneId getZone() {
-        return ZoneOffset.UTC;
+        return zone;
     }
 
     @Override
     public Clock withZone(ZoneId zone) {
-        return this;
+        return new MutableClock(instant, zone);
     }
 }
